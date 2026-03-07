@@ -1,0 +1,458 @@
+<!DOCTYPE html>
+<html lang="ko">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>리밸런싱 차트 (Rebalancing)</title>
+    <link rel="stylesheet" href="https://cdnjs.cloudflare.com/ajax/libs/font-awesome/6.4.0/css/all.min.css">
+    <script src="https://cdn.jsdelivr.net/npm/chart.js"></script>
+    <style>
+        body { font-family: -apple-system, BlinkMacSystemFont, "Segoe UI", Roboto, "Helvetica Neue", Arial, sans-serif; margin: 0; padding: 20px; background: #f0f2f5; display: flex; flex-direction: column; align-items: center; min-height: 100vh; }
+        .container { width: 100%; max-width: 1200px; background: white; padding: 20px; border-radius: 12px; box-shadow: 0 4px 12px rgba(0,0,0,0.1); position: relative; }
+        
+        /* 상단 내비게이션 스타일 */
+        .nav-bar { display: flex; gap: 8px; margin-bottom: 20px; flex-wrap: wrap; border-bottom: 1px solid #eee; padding-bottom: 15px; }
+        .nav-link { 
+            text-decoration: none; color: #555; padding: 8px 12px; 
+            border: 1px solid #ddd; border-radius: 5px; background: #fff; 
+            display: flex; align-items: center; gap: 6px; font-size: 14px;
+            transition: all 0.2s;
+        }
+        .nav-link:hover { background: #f0f0f0; color: #007bff; border-color: #007bff; }
+        .nav-link.active { background: #007bff; color: white; border-color: #007bff; }
+
+        .controls { display: flex; gap: 15px; margin-bottom: 20px; flex-wrap: wrap; align-items: center; background: #f8f9fa; padding: 15px; border-radius: 8px; border: 1px solid #e9ecef; }
+        
+        .input-group { display: flex; align-items: center; gap: 6px; }
+        .input-group label { font-size: 14px; font-weight: bold; color: #555; }
+        
+        input[type="text"], input[type="number"] { padding: 8px; border: 1px solid #ced4da; border-radius: 4px; font-size: 14px; }
+        input:focus { outline: none; border-color: #80bdff; box-shadow: 0 0 0 0.2rem rgba(0,123,255,.25); }
+        
+        .symbol-input { width: 120px; text-transform: uppercase; }
+        .number-input { width: 80px; }
+
+        button.add-btn { padding: 8px 16px; background: #007bff; color: white; border: none; border-radius: 4px; cursor: pointer; font-size: 14px; transition: background 0.15s; }
+        button.add-btn:hover { background: #0056b3; }
+
+        .symbol-list { display: flex; flex-wrap: wrap; gap: 8px; margin-bottom: 20px; }
+        .tag { 
+            padding: 8px 16px; border-radius: 20px; display: flex; align-items: center; gap: 8px; font-size: 14px; 
+            font-weight: 500; cursor: pointer; transition: all 0.2s; border: 1px solid #dee2e6;
+            background: #e9ecef; color: #495057;
+        }
+        .tag.active { background: #e7f1ff; color: #0d6efd; border-color: #0d6efd; font-weight: bold; }
+        .tag:hover { transform: translateY(-2px); box-shadow: 0 2px 4px rgba(0,0,0,0.05); }
+        .tag span.remove { cursor: pointer; color: #dc3545; font-weight: bold; padding: 0 4px; z-index: 2; margin-left: 4px; }
+        .tag span.remove:hover { color: #a71d2a; }
+
+        .chart-container { position: relative; height: 65vh; width: 100%; }
+        #statusMessage { text-align: center; margin-bottom: 10px; font-size: 14px; height: 20px; }
+
+        .nav-header { display: flex; justify-content: space-between; align-items: center; margin-bottom: 20px; border-bottom: 2px solid #f1f3f5; padding-bottom: 10px; }
+        
+        .nav-btn { 
+            padding: 8px 16px; color: white; border: none; border-radius: 6px; 
+            cursor: pointer; font-size: 14px; text-decoration: none; transition: background 0.2s;
+        }
+        
+        /* 커스텀 툴팁 스타일 */
+        #chartjs-tooltip {
+            opacity: 0;
+            position: absolute;
+            pointer-events: none;
+            transition: all .1s ease;
+            font-size: 14px;
+            font-weight: bold;
+            color: white;
+            text-shadow: -1px -1px 0 #000, 1px -1px 0 #000, -1px 1px 0 #000, 1px 1px 0 #000;
+            z-index: 100;
+            text-align: center;
+            white-space: nowrap; 
+        }
+
+        /* [추가] 회전 버튼 스타일 */
+        .btn-rotate { background: none; border: none; font-size: 1.4rem; cursor: pointer; color: #007bff; padding: 5px; display: flex; align-items: center; justify-content: center; transition: opacity 0.2s; }
+        .btn-rotate:hover { opacity: 0.8; }
+
+        /* [추가] 강제 가로 모드 (CSS 회전 기법 적용) */
+        body.is-rotated .container {
+            position: fixed !important;
+            top: 0 !important;
+            left: 0 !important;
+            width: 100dvh !important;
+            height: 100dvw !important;
+            max-width: none !important;
+            margin: 0 !important;
+            border-radius: 0 !important;
+            transform-origin: 50dvw 50dvw !important;
+            transform: rotate(90deg) !important;
+            z-index: 2000 !important;
+            
+            /* 스크롤 및 노치 패딩 보호 */
+            overflow-y: auto !important;
+            padding-left: calc(20px + env(safe-area-inset-top)) !important;
+            padding-right: calc(20px + env(safe-area-inset-bottom)) !important;
+            box-sizing: border-box !important;
+            background: white !important;
+        }
+
+        /* dvh 미지원 브라우저 대비 */
+        @supports not (height: 100dvh) {
+            body.is-rotated .container {
+                width: 100vh !important;
+                height: 100vw !important;
+                transform-origin: 50vw 50vw !important;
+            }
+        }
+    </style>
+</head>
+<body>
+
+    <div class="container">
+        <div class="nav-bar">
+            <a href="index.html" class="nav-link"><i class="fas fa-home"></i> 통합 뷰</a>
+            <a href="rebalancing.html" class="nav-link active"><i class="fas fa-balance-scale"></i> 리밸런싱</a>
+            <a href="trend.html" class="nav-link"><i class="fas fa-chart-line"></i> US 수익률</a>
+            <a href="k-trend.html" class="nav-link"><i class="fas fa-won-sign"></i> KR 수익률</a>
+            <a href="top_chart.html" class="nav-link"><i class="fas fa-trophy"></i> 시총 Top</a>
+        </div>
+
+        <div class="nav-header">
+            <div style="display: flex; align-items: center; gap: 10px;">
+                <h2 style="margin:0;">⚖️ 리밸런싱 차트</h2>
+                <button class="btn-rotate" onclick="toggleRotation()" title="가로 화면 전환"><i class="fas fa-sync-alt" id="rotateIcon"></i></button>
+            </div>
+            <div>
+                <button class="nav-btn" style="background: #6c757d;" onclick="resetLines()">⟲ 보통선</button>
+                <button class="nav-btn" style="background: #dc3545; margin-left: 5px;" onclick="hideAllLines()">∅ 모두 숨김</button>
+            </div>
+        </div>
+        
+        <div class="controls">
+            <div class="input-group">
+                <input type="text" id="symbolInput" class="symbol-input" placeholder="종목 (예: TQQQ)" onkeypress="handleEnter(event)">
+                <button class="add-btn" onclick="addSymbol()">추가</button>
+            </div>
+            <div style="width: 1px; height: 24px; background: #ddd; margin: 0 5px;"></div>
+            <div class="input-group">
+                <label for="dropRate">📉 등락폭(%):</label>
+                <input type="number" id="dropRate" class="number-input" placeholder="5.0" step="0.1" oninput="updateChartSettings()">
+            </div>
+            <div class="input-group">
+                <label for="basePrice">🚩 기준가($):</label>
+                <input type="number" id="basePrice" class="number-input" placeholder="최고가" step="any" oninput="updateChartSettings()">
+                <button class="nav-btn" style="background: #adb5bd; padding: 6px 10px; font-size: 12px; border-radius: 4px;" onclick="resetBasePrice()">자동(Max)</button>
+            </div>
+        </div>
+
+        <p style="font-size: 0.9em; color: #666; margin-top:-10px; margin-bottom: 20px;">
+            * 각 종목별로 설정한 <b>기준가</b>와 <b>등락폭</b>이 자동으로 저장됩니다.
+        </p>
+
+        <div class="symbol-list" id="symbolList"></div>
+        <div id="statusMessage"></div>
+
+        <div class="chart-container">
+            <canvas id="mainChart"></canvas>
+            <div id="chartjs-tooltip"></div>
+        </div>
+    </div>
+
+    <script>
+        let myChart = null;
+        let symbols = []; 
+        let currentSymbol = null;
+        let currentData = null;
+        const STORAGE_KEY = 'rebalancing_portfolio_v1';
+
+        let configDropRate = 5.0;
+        let configBasePrice = null;
+
+        window.onload = function() {
+            loadSymbols();
+            if (symbols.length === 0) {
+                symbols = [
+                    { symbol: 'NVDA', basePrice: null, dropRate: 5.0 },
+                    { symbol: 'GOOGL', basePrice: null, dropRate: 5.0 },
+                    { symbol: 'AAPL', basePrice: null, dropRate: 5.0 }
+                ];
+                saveSymbols();
+            }
+            if (symbols.length > 0) {
+                selectSymbol(symbols[0].symbol); 
+            } else {
+                renderTags();
+            }
+        };
+
+        // [추가] 회전 토글 함수
+        function toggleRotation() {
+            const body = document.body;
+            body.classList.toggle('is-rotated');
+            
+            const icon = document.getElementById('rotateIcon');
+            if (body.classList.contains('is-rotated')) {
+                icon.classList.replace('fa-sync-alt', 'fa-compress');
+            } else {
+                icon.classList.replace('fa-compress', 'fa-sync-alt');
+            }
+
+            // [수정] 애니메이션 완료 후 차트를 다시 그려 늘어난 너비에 가로선을 꽉 채움
+            setTimeout(() => {
+                if (currentData) {
+                    drawChart(); 
+                }
+                window.dispatchEvent(new Event('resize'));
+            }, 350);
+        }
+
+        // [추가] 물리적 화면 회전 시 강제 모드 해제 방어 코드
+        window.addEventListener('orientationchange', () => {
+            if (document.body.classList.contains('is-rotated')) {
+                toggleRotation();
+            }
+        });
+
+        function loadSymbols() {
+            const stored = localStorage.getItem(STORAGE_KEY);
+            if (stored) {
+                try {
+                    const parsed = JSON.parse(stored);
+                    symbols = parsed;
+                } catch(e) { symbols = []; }
+            }
+        }
+
+        function saveSymbols() { localStorage.setItem(STORAGE_KEY, JSON.stringify(symbols)); }
+        
+        function hideAllLines() {
+            if (!myChart) return;
+            myChart.setDatasetVisibility(0, false);
+            myChart.update();
+        }
+
+        function resetLines() {
+            if (currentSymbol) {
+                selectSymbol(currentSymbol);
+            }
+        }
+
+        function handleEnter(e) { if (e.key === 'Enter') addSymbol(); }
+
+        function addSymbol() {
+            const input = document.getElementById('symbolInput');
+            const val = input.value.trim().toUpperCase();
+            if (!val) return;
+            if (symbols.some(s => s.symbol === val)) {
+                showMessage('⚠️ 이미 존재하는 종목입니다.', 'orange');
+                selectSymbol(val);
+                input.value = '';
+                return;
+            }
+            symbols.push({ symbol: val, basePrice: null, dropRate: 5.0 });
+            saveSymbols();
+            input.value = '';
+            selectSymbol(val);
+        }
+
+        function removeSymbol(e, sym) {
+            e.stopPropagation();
+            symbols = symbols.filter(s => s.symbol !== sym);
+            saveSymbols();
+            if (currentSymbol === sym) {
+                if (symbols.length > 0) selectSymbol(symbols[0].symbol);
+                else {
+                    currentSymbol = null;
+                    destroyChart();
+                    renderTags();
+                }
+            } else {
+                renderTags();
+            }
+        }
+
+        function selectSymbol(sym) {
+            currentSymbol = sym;
+            const target = symbols.find(s => s.symbol === sym);
+            if (target) {
+                configDropRate = target.dropRate !== undefined ? target.dropRate : 5.0;
+                configBasePrice = target.basePrice !== undefined ? target.basePrice : null;
+                document.getElementById('dropRate').value = configDropRate;
+                document.getElementById('basePrice').value = configBasePrice !== null ? configBasePrice : '';
+            }
+            renderTags();
+            loadAndRenderChart(sym);
+        }
+
+        function renderTags() {
+            const container = document.getElementById('symbolList');
+            container.innerHTML = '';
+            symbols.forEach(item => {
+                const div = document.createElement('div');
+                div.className = `tag ${item.symbol === currentSymbol ? 'active' : ''}`;
+                div.onclick = () => selectSymbol(item.symbol);
+                div.innerHTML = `${item.symbol} <span class="remove" onclick="removeSymbol(event, '${item.symbol}')">×</span>`;
+                container.appendChild(div);
+            });
+        }
+
+        function showMessage(msg, color='black') {
+            const el = document.getElementById('statusMessage');
+            el.style.color = color;
+            el.innerText = msg;
+        }
+
+        function updateChartSettings() {
+            const dropInput = document.getElementById('dropRate').value;
+            const priceInput = document.getElementById('basePrice').value;
+            configDropRate = parseFloat(dropInput) || 5.0;
+            configBasePrice = priceInput ? parseFloat(priceInput) : null;
+            if (currentSymbol) {
+                const target = symbols.find(s => s.symbol === currentSymbol);
+                if (target) {
+                    target.dropRate = configDropRate;
+                    target.basePrice = configBasePrice;
+                    saveSymbols();
+                }
+            }
+            if (myChart) myChart.update();
+        }
+
+        function resetBasePrice() {
+            document.getElementById('basePrice').value = '';
+            updateChartSettings();
+        }
+
+        async function loadAndRenderChart(symbol) {
+            showMessage(`⏳ ${symbol} 데이터 로딩 중...`, '#0d6efd');
+            const dtEnd = Math.floor(Date.now() / 1000);
+            const dtStart = dtEnd - (180 * 24 * 60 * 60);
+            const yahooUrl = `https://query1.finance.yahoo.com/v8/finance/chart/${symbol}?period1=${dtStart}&period2=${dtEnd}&interval=1d`;
+            const url = 'https://newcmnet.duckdns.org/proxy?url=' + encodeURIComponent(yahooUrl);
+
+            try {
+                const res = await fetch(url);
+                const json = await res.json();
+                const result = json.chart.result[0];
+                const timestamps = result.timestamp;
+                const quotes = result.indicators.quote[0];
+                const validLabels = [];
+                const validPrices = [];
+                timestamps.forEach((t, i) => {
+                    if (quotes.close[i]) {
+                        validLabels.push(new Date(t * 1000).toISOString().slice(0, 10));
+                        validPrices.push(quotes.close[i]);
+                    }
+                });
+                currentData = { labels: validLabels, prices: validPrices, symbol: symbol };
+                drawChart();
+                showMessage('✅ 업데이트 완료', 'green');
+                setTimeout(() => showMessage(''), 2000);
+            } catch (e) {
+                showMessage(`❌ ${symbol} 로드 실패`, 'red');
+            }
+        }
+
+        const horizontalLinesPlugin = {
+            id: 'horizontalLines',
+            afterDatasetsDraw(chart) {
+                const { ctx, chartArea: { top, bottom, left }, scales: { y }, width } = chart;
+                if (!currentData || currentData.prices.length === 0 || !chart.isDatasetVisible(0)) return;
+
+                const maxPrice = Math.max(...currentData.prices);
+                const base = configBasePrice !== null ? configBasePrice : maxPrice;
+                const rate = configDropRate; 
+                const lineEndX = width - 5;
+
+                ctx.save();
+                ctx.textAlign = 'right';
+                ctx.textBaseline = 'bottom';
+                ctx.font = '12px Arial';
+
+                function drawLine(price, type) {
+                    const yPos = y.getPixelForValue(price);
+                    if (yPos < top - 10 || yPos > bottom + 10) return;
+
+                    ctx.beginPath();
+                    if (type === 'base') {
+                        ctx.strokeStyle = '#dc3545';
+                        ctx.setLineDash([]);
+                        ctx.fillStyle = '#dc3545';
+                    } else {
+                        ctx.strokeStyle = type === 'up' ? 'rgba(255, 99, 132, 0.6)' : 'rgba(0, 0, 0, 0.4)';
+                        ctx.setLineDash([4, 4]);
+                        ctx.fillStyle = type === 'up' ? 'rgba(255, 99, 132, 0.9)' : '#555';
+                    }
+
+                    ctx.moveTo(left, yPos);
+                    ctx.lineTo(lineEndX, yPos);
+                    ctx.stroke();
+
+                    const labelText = type === 'base' ? `기준: $${price.toFixed(2)}` : `${type === 'up' ? '+' : '-'}${Math.abs((price - base) / base * 100).toFixed(1)}% ($${price.toFixed(2)})`;
+                    ctx.fillText(labelText, lineEndX - 5, yPos - 3);
+                }
+
+                drawLine(base, 'base');
+                for (let i = 1; i <= 20; i++) {
+                    drawLine(base * (1 - (rate * i) / 100), 'down');
+                    drawLine(base * (1 + (rate * i) / 100), 'up');
+                }
+                ctx.restore();
+            }
+        };
+
+        function drawChart() {
+            if (!currentData) return;
+            const ctx = document.getElementById('mainChart').getContext('2d');
+            const tooltipEl = document.getElementById('chartjs-tooltip');
+            
+            // 기존 차트를 확실히 파괴하여 새로운 사이즈에서 재계산 유도
+            if (myChart) myChart.destroy();
+
+            myChart = new Chart(ctx, {
+                type: 'line',
+                data: {
+                    labels: currentData.labels,
+                    datasets: [{
+                        label: currentData.symbol,
+                        data: currentData.prices,
+                        borderColor: '#0d6efd',
+                        pointRadius: 3,
+                        pointBackgroundColor: '#7693E1',
+                        tension: 0.1,
+                        fill: false
+                    }]
+                },
+                plugins: [horizontalLinesPlugin],
+                options: {
+                    responsive: true,
+                    maintainAspectRatio: false,
+                    layout: { padding: { right: 70, top: 20 } },
+                    interaction: { mode: 'index', intersect: false },
+                    plugins: {
+                        legend: { display: false },
+                        tooltip: {
+                            enabled: false,
+                            external: function(context) {
+                                const tooltipModel = context.tooltip;
+                                if (tooltipModel.opacity === 0) { tooltipEl.style.opacity = 0; return; }
+                                if (tooltipModel.body) {
+                                    const rawPrice = context.chart.data.datasets[0].data[tooltipModel.dataPoints[0].dataIndex];
+                                    tooltipEl.innerHTML = `<div>${tooltipModel.title[0]}</div><div style="font-size:1.3em;">$${Number(rawPrice).toFixed(2)}</div>`;
+                                }
+                                tooltipEl.style.opacity = 1;
+                                tooltipEl.style.left = (tooltipModel.caretX - (tooltipEl.offsetWidth / 2)) + 'px';
+                                tooltipEl.style.top = (tooltipModel.caretY + 45) + 'px';
+                            }
+                        }
+                    },
+                    scales: { y: { grid: { display: false } }, x: { grid: { display: false }, ticks: { maxTicksLimit: 8 } } }
+                }
+            });
+        }
+        
+        function destroyChart() { if (myChart) myChart.destroy(); myChart = null; currentData = null; }
+    </script>
+</body>
+</html>

@@ -1,0 +1,453 @@
+<!DOCTYPE html>
+<html lang="ko">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>한국 주식 수익률 비교 (상태 저장 포함)</title>
+    <link rel="stylesheet" href="https://cdnjs.cloudflare.com/ajax/libs/font-awesome/6.4.0/css/all.min.css">
+    <script src="https://cdn.jsdelivr.net/npm/chart.js"></script>
+    <style>
+        body { font-family: "Pretendard", -apple-system, BlinkMacSystemFont, "Malgun Gothic", sans-serif; margin: 0; padding: 20px; background: #f0f2f5; display: flex; flex-direction: column; align-items: center; min-height: 100vh; }
+        .container { width: 100%; max-width: 1200px; background: white; padding: 20px; border-radius: 12px; box-shadow: 0 4px 12px rgba(0,0,0,0.1); position: relative; }
+        
+        /* 상단 내비게이션 스타일 */
+        .nav-bar { display: flex; gap: 8px; margin-bottom: 20px; flex-wrap: wrap; border-bottom: 1px solid #eee; padding-bottom: 15px; }
+        .nav-link { 
+            text-decoration: none; color: #555; padding: 8px 12px; 
+            border: 1px solid #ddd; border-radius: 5px; background: #fff; 
+            display: flex; align-items: center; gap: 6px; font-size: 14px;
+            transition: all 0.2s;
+        }
+        .nav-link:hover { background: #f0f0f0; color: #007bff; border-color: #007bff; }
+        .nav-link.active { background: #007bff; color: white; border-color: #007bff; }
+
+        .controls { display: flex; gap: 10px; margin-bottom: 20px; flex-wrap: wrap; }
+        input[type="text"] { padding: 12px; border: 1px solid #ddd; border-radius: 6px; font-size: 16px; flex-grow: 1; }
+        button.add-btn { padding: 10px 20px; background: #007bff; color: white; border: none; border-radius: 6px; cursor: pointer; font-size: 16px; transition: background 0.2s; white-space: nowrap; }
+        button.add-btn:hover { background: #0056b3; }
+
+        .custom-legend { display: flex; flex-wrap: wrap; gap: 10px; margin-bottom: 20px; justify-content: center; }
+        .legend-item { 
+            background: #f8f9fa; border: 1px solid #e9ecef; border-radius: 8px; 
+            padding: 8px 12px; cursor: pointer; display: flex; align-items: center; gap: 10px; 
+            transition: all 0.2s; user-select: none; min-width: 180px;
+        }
+        .legend-item:hover { background: #e2e6ea; transform: translateY(-2px); }
+        .legend-color-box { width: 12px; height: 12px; border-radius: 3px; flex-shrink: 0; }
+        
+        .legend-info { display: flex; flex-direction: column; font-size: 13px; line-height: 1.3; width: 100%; }
+        .legend-name { font-weight: bold; font-size: 15px; color: #333; display: flex; justify-content: space-between; }
+        .legend-close { color: #999; font-weight: normal; margin-left: 8px; font-size: 16px; }
+        .legend-close:hover { color: #dc3545; }
+        
+        .legend-prices { margin-top: 4px; color: #666; font-size: 12px; display: flex; align-items: center; gap: 5px; }
+        .price-arrow { color: #999; font-size: 10px; }
+        
+        .text-up { color: #d60000; font-weight: bold; }
+        .text-down { color: #0051c7; font-weight: bold; }
+        .text-flat { color: #666; }
+
+        /* 레전드 상태 스타일 */
+        .legend-item.hidden { opacity: 0.4; filter: grayscale(100%); }
+        .legend-item.highlighted { border: 2px solid #333; box-shadow: 0 2px 8px rgba(0,0,0,0.15); background: #fff; }
+
+        .chart-container { position: relative; height: 60vh; width: 100%; }
+        #statusMessage { text-align: center; margin-bottom: 10px; font-size: 14px; height: 20px; }
+
+        .nav-header { display: flex; justify-content: space-between; align-items: center; margin-bottom: 20px; }
+        h2 { margin: 0; font-size: 1.5rem; word-break: keep-all; }
+
+        .reset-btn { background: #6c757d; color: white; padding: 8px 15px; border: none; border-radius: 6px; cursor: pointer; font-size: 14px; margin-left: 5px;}
+        .reset-btn:hover { background: #5a6268; }
+        
+    </style>
+</head>
+<body>
+
+    <div class="container">
+        <div class="nav-bar">
+            <a href="index.html" class="nav-link"><i class="fas fa-home"></i> 통합 뷰</a>
+            <a href="rebalancing.html" class="nav-link"><i class="fas fa-balance-scale"></i> 리밸런싱</a>
+            <a href="trend.html" class="nav-link"><i class="fas fa-chart-line"></i> US 수익률</a>
+            <a href="k-trend.html" class="nav-link active"><i class="fas fa-won-sign"></i> KR 수익률</a>
+            <a href="top_chart.html" class="nav-link"><i class="fas fa-trophy"></i> 시총 Top</a>
+        </div>
+
+        <div class="nav-header">
+            <h2>📈 한국 주식 수익률 비교</h2>
+            <div>
+                <button class="reset-btn" onclick="resetLines()">⟲ 보통선</button>
+                <button class="reset-btn" style="background:#dc3545;" onclick="hideAllLines()">∅ 모두 숨김</button>
+            </div>
+        </div>
+        
+        <p style="font-size: 0.9em; color: #666; margin-top:0;">범례를 클릭하여 <b>보통 → 강조(굵게) → 숨김</b> 순서로 변경할 수 있습니다. (자동 저장)</p>
+        
+        <div class="controls">
+            <input type="text" id="symbolInput" placeholder="종목명(예: 삼성전자) 또는 코드(005930) 입력" onkeypress="handleEnter(event)">
+            <button class="add-btn" onclick="searchAndAddSymbol()">추가</button>
+        </div>
+
+        <div id="customLegend" class="custom-legend"></div>
+        <div id="statusMessage"></div>
+        <div class="chart-container">
+            <canvas id="comparisonChart"></canvas>
+        </div>
+    </div>
+
+    <script>
+        let myChart = null;
+        let stockList = []; 
+        const STORAGE_KEY = 'my_kstock_symbols_v2_state'; 
+        
+        const colors = [
+            '#FF6384', '#36A2EB', '#FFCE56', '#4BC0C0', '#9966FF', '#FF9F40', 
+            '#2E86C1', '#28B463', '#D35400', '#884EA0', '#839192', '#F1C40F'
+        ];
+
+        window.onload = function() {
+            loadSymbols();
+            if (stockList.length === 0) {
+                stockList = [
+                    { code: '005930.KS', name: '삼성전자', state: 0 },
+                    { code: '000660.KS', name: 'SK하이닉스', state: 0 },
+                    { code: '035420.KS', name: 'NAVER', state: 0 }
+                ];
+                saveSymbols();
+            }
+            updateChart();
+        };
+
+        function loadSymbols() {
+            const stored = localStorage.getItem(STORAGE_KEY);
+            if (stored) {
+                const parsed = JSON.parse(stored);
+                stockList = parsed.map(item => {
+                    if (item.state === undefined) item.state = 0;
+                    return item;
+                });
+            }
+        }
+
+        function saveSymbols() {
+            localStorage.setItem(STORAGE_KEY, JSON.stringify(stockList));
+        }
+
+        function resetLines() {
+            if (!myChart) return;
+            stockList.forEach(item => {
+                item.state = 0;
+            });
+            saveSymbols();
+            updateChart();
+        }
+
+        function hideAllLines() {
+            if (!myChart) return;
+            stockList.forEach(item => {
+                item.state = 2; // 숨김 상태
+            });
+            saveSymbols();
+            
+            myChart.data.datasets.forEach((ds, index) => {
+                ds.viewState = 2;
+                myChart.setDatasetVisibility(index, false);
+            });
+            
+            myChart.update();
+            generateCustomLegend(myChart.data.datasets);
+        }
+
+        function handleEnter(e) { if (e.key === 'Enter') searchAndAddSymbol(); }
+
+        async function searchAndAddSymbol() {
+            const input = document.getElementById('symbolInput');
+            const val = input.value.trim();
+            if (!val) return;
+
+            showMessage('🔍 검색 중...', '#007bff');
+
+            const exists = stockList.some(item => item.code === val || item.name === val || item.code.startsWith(val));
+            if (exists) {
+                showMessage('⚠️ 이미 목록에 있는 종목입니다.', 'orange');
+                return;
+            }
+
+            let symbolToAdd = null;
+            let nameToAdd = null;
+
+            if (/^\d{6}$/.test(val)) {
+                try {
+                    const searchResult = await callYahooSearchApi(val);
+                    if (searchResult) {
+                        symbolToAdd = searchResult.symbol;
+                        nameToAdd = searchResult.shortname || searchResult.longname;
+                    } else {
+                        symbolToAdd = val + '.KS'; 
+                        nameToAdd = val;
+                    }
+                } catch(e) {
+                    symbolToAdd = val + '.KS';
+                    nameToAdd = val;
+                }
+            } else {
+                try {
+                    const result = await callYahooSearchApi(val);
+                    if (result) {
+                        symbolToAdd = result.symbol;
+                        nameToAdd = result.shortname || result.longname; 
+                    } else {
+                        showMessage(`❌ '${val}'을(를) 찾을 수 없습니다.`, 'red');
+                        return;
+                    }
+                } catch (e) {
+                    showMessage('❌ 검색 통신 오류', 'red');
+                    return;
+                }
+            }
+
+            if (stockList.some(s => s.code === symbolToAdd)) {
+                showMessage('⚠️ 이미 존재하는 종목입니다.', 'orange');
+                input.value = '';
+                return;
+            }
+
+            stockList.push({ code: symbolToAdd, name: nameToAdd, state: 0 });
+            saveSymbols();
+            input.value = '';
+            updateChart();
+        }
+
+        async function callYahooSearchApi(query) {
+            const yahooSearchUrl = `https://query1.finance.yahoo.com/v1/finance/search?q=${encodeURIComponent(query)}&quotesCount=1&newsCount=0&enableFuzzyQuery=false&quotesQueryId=tss_match_eq_basic`;
+            const proxyUrl = 'https://newcmnet.duckdns.org/proxy?url=' + encodeURIComponent(yahooSearchUrl);
+            const res = await fetch(proxyUrl);
+            const data = await res.json();
+            if (data.quotes && data.quotes.length > 0) return data.quotes[0];
+            return null;
+        }
+
+        function removeSymbol(code) {
+            stockList = stockList.filter(s => s.code !== code);
+            saveSymbols();
+            updateChart();
+        }
+
+        function showMessage(msg, color='black') {
+            const el = document.getElementById('statusMessage');
+            el.style.color = color;
+            el.innerText = msg;
+        }
+
+        async function fetchStockData(stockObj) {
+            const symbol = stockObj.code;
+            const dtEnd = Math.floor(Date.now() / 1000);
+            const dtStart = dtEnd - (95 * 24 * 60 * 60); 
+            const yahooUrl = `https://query1.finance.yahoo.com/v8/finance/chart/${symbol}?period1=${dtStart}&period2=${dtEnd}&interval=1d`;
+            const url = 'https://newcmnet.duckdns.org/proxy?url=' + encodeURIComponent(yahooUrl);
+
+            try {
+                const res = await fetch(url);
+                if (!res.ok) throw new Error('Network Error');
+                const json = await res.json();
+                if(!json.chart || !json.chart.result) throw new Error('No Data');
+
+                const result = json.chart.result[0];
+                const timestamps = result.timestamp;
+                const closes = result.indicators.quote[0].close;
+                
+                const validPrices = [];
+                const validDates = [];
+                
+                if(!timestamps || !closes) return null;
+
+                closes.forEach((price, i) => {
+                    if (price) {
+                        validPrices.push(price);
+                        validDates.push(new Date(timestamps[i] * 1000).toISOString().slice(0, 10));
+                    }
+                });
+
+                if (validPrices.length === 0) return null;
+
+                return { 
+                    symbol: symbol, 
+                    name: stockObj.name, 
+                    dates: validDates, 
+                    prices: validPrices,
+                    state: stockObj.state 
+                };
+            } catch (e) {
+                console.error(e);
+                showMessage(`❌ ${stockObj.name || symbol} 데이터 로드 실패`, 'red');
+                return null;
+            }
+        }
+
+        async function updateChart() {
+            if (stockList.length === 0) { 
+                if(myChart) myChart.destroy(); 
+                document.getElementById('customLegend').innerHTML = '';
+                return; 
+            }
+            showMessage('⏳ 데이터를 불러오는 중...', '#007bff');
+
+            const results = await Promise.all(stockList.map(fetchStockData));
+            const validResults = results.filter(r => r !== null);
+
+            if (validResults.length === 0) { showMessage('데이터 없음', 'red'); return; }
+
+            const allDatesSet = new Set();
+            validResults.forEach(r => r.dates.forEach(d => allDatesSet.add(d)));
+            const sortedLabels = Array.from(allDatesSet).sort();
+
+            const datasets = validResults.map((r, index) => {
+                const basePrice = r.prices[0];
+                const lastPrice = r.prices[r.prices.length - 1];
+                
+                const data = sortedLabels.map(d => {
+                    const idx = r.dates.indexOf(d);
+                    return idx > -1 ? ((r.prices[idx] - basePrice) / basePrice) * 100 : null;
+                });
+
+                const color = colors[index % colors.length];
+
+                let bWidth = 2;
+                let isHidden = false;
+                if (r.state === 1) bWidth = 6; 
+                else if (r.state === 2) isHidden = true;
+
+                return {
+                    label: r.name, 
+                    code: r.symbol,
+                    data: data,
+                    borderColor: color,
+                    backgroundColor: color,
+                    borderWidth: bWidth, 
+                    pointRadius: 0,
+                    pointHoverRadius: 4, 
+                    tension: 0.3,
+                    fill: false,
+                    hidden: isHidden, 
+                    originPrice: basePrice,
+                    currentPrice: lastPrice,
+                    viewState: r.state
+                };
+            });
+
+            drawChart(sortedLabels, datasets);
+            generateCustomLegend(datasets); 
+            showMessage('✅ 업데이트 완료', 'green');
+            setTimeout(() => showMessage(''), 2000);
+        }
+
+        function drawChart(labels, datasets) {
+            const ctx = document.getElementById('comparisonChart').getContext('2d');
+            if (myChart) myChart.destroy();
+
+            myChart = new Chart(ctx, {
+                type: 'line',
+                data: { labels, datasets },
+                options: {
+                    responsive: true,
+                    maintainAspectRatio: false,
+                    interaction: { mode: 'index', intersect: false },
+                    plugins: {
+                        legend: { display: false }, 
+                        tooltip: {
+                            callbacks: {
+                                label: ctx => {
+                                    const val = ctx.parsed.y?.toFixed(2);
+                                    return `${ctx.dataset.label}: ${val}%`;
+                                }
+                            }
+                        }
+                    },
+                    scales: {
+                        y: {
+                            grid: { color: c => c.tick.value === 0 ? '#666' : '#eee', lineWidth: c => c.tick.value === 0 ? 1.5 : 1 },
+                            ticks: { callback: v => v + '%' }
+                        },
+                        x: { display: false } 
+                    }
+                }
+            });
+        }
+
+        function generateCustomLegend(datasets) {
+            const container = document.getElementById('customLegend');
+            container.innerHTML = '';
+
+            datasets.forEach((ds, index) => {
+                const startP = ds.originPrice;
+                const endP = ds.currentPrice;
+                const diff = endP - startP;
+                const diffRate = ((diff / startP) * 100).toFixed(1);
+                
+                const priceClass = diff >= 0 ? 'text-up' : 'text-down';
+                const sign = diff >= 0 ? '+' : '';
+
+                const div = document.createElement('div');
+                div.className = 'legend-item';
+                div.dataset.index = index;
+                
+                if (ds.viewState === 1) div.classList.add('highlighted');
+                else if (ds.viewState === 2) div.classList.add('hidden');
+
+                div.innerHTML = `
+                    <div class="legend-color-box" style="background:${ds.borderColor}"></div>
+                    <div class="legend-info">
+                        <div class="legend-name">
+                            ${ds.label}
+                            <span class="legend-close" onclick="event.stopPropagation(); removeSymbol('${ds.code}')">×</span>
+                        </div>
+                        <div class="legend-prices">
+                            <span>${startP.toLocaleString()}</span>
+                            <span class="price-arrow">▶</span>
+                            <span class="${priceClass}">${endP.toLocaleString()} (${sign}${diffRate}%)</span>
+                        </div>
+                    </div>
+                `;
+
+                div.onclick = () => toggleDataset(index, div);
+                container.appendChild(div);
+            });
+        }
+
+        function toggleDataset(index, element) {
+            const ci = myChart;
+            const ds = ci.data.datasets[index];
+            
+            let nextState;
+            const current = ds.viewState;
+
+            if (current === 0) nextState = 1;
+            else if (current === 1) nextState = 2;
+            else nextState = 0;
+
+            element.classList.remove('highlighted', 'hidden');
+            
+            if (nextState === 0) { 
+                ds.borderWidth = 2;
+                ci.setDatasetVisibility(index, true);
+            } else if (nextState === 1) { 
+                element.classList.add('highlighted');
+                ds.borderWidth = 6;
+                ci.setDatasetVisibility(index, true);
+            } else if (nextState === 2) { 
+                element.classList.add('hidden');
+                ci.setDatasetVisibility(index, false);
+            }
+
+            ds.viewState = nextState;
+            ci.update();
+
+            const targetSymbol = stockList.find(s => s.code === ds.code);
+            if (targetSymbol) {
+                targetSymbol.state = nextState;
+                saveSymbols();
+            }
+        }
+    </script>
+</body>
+</html>
