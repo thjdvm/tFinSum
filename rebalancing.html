@@ -22,9 +22,10 @@
         .nav-link.active { background: #007bff; color: white; border-color: #007bff; }
 
         .controls { display: flex; gap: 15px; margin-bottom: 20px; flex-wrap: wrap; align-items: center; background: #f8f9fa; padding: 15px; border-radius: 8px; border: 1px solid #e9ecef; }
+        .mobile-row { display: flex; align-items: center; gap: 10px; }
         
         .input-group { display: flex; align-items: center; gap: 6px; }
-        .input-group label { font-size: 14px; font-weight: bold; color: #555; }
+        .input-group label { font-size: 14px; font-weight: bold; color: #555; white-space: nowrap; }
         
         input[type="text"], input[type="number"] { padding: 8px; border: 1px solid #ced4da; border-radius: 4px; font-size: 14px; }
         input:focus { outline: none; border-color: #80bdff; box-shadow: 0 0 0 0.2rem rgba(0,123,255,.25); }
@@ -32,7 +33,7 @@
         .symbol-input { width: 120px; text-transform: uppercase; }
         .number-input { width: 80px; }
 
-        button.add-btn { padding: 8px 16px; background: #007bff; color: white; border: none; border-radius: 4px; cursor: pointer; font-size: 14px; transition: background 0.15s; }
+        button.add-btn { padding: 8px 16px; background: #007bff; color: white; border: none; border-radius: 4px; cursor: pointer; font-size: 14px; transition: background 0.15s; white-space: nowrap; }
         button.add-btn:hover { background: #0056b3; }
 
         .symbol-list { display: flex; flex-wrap: wrap; gap: 8px; margin-bottom: 20px; }
@@ -50,60 +51,75 @@
         #statusMessage { text-align: center; margin-bottom: 10px; font-size: 14px; height: 20px; }
 
         .nav-header { display: flex; justify-content: space-between; align-items: center; margin-bottom: 20px; border-bottom: 2px solid #f1f3f5; padding-bottom: 10px; }
+        .nav-header-left { display: flex; align-items: center; gap: 10px; }
+        .nav-header-right { display: flex; gap: 5px; }
         
         .nav-btn { 
             padding: 8px 16px; color: white; border: none; border-radius: 6px; 
-            cursor: pointer; font-size: 14px; text-decoration: none; transition: background 0.2s;
+            cursor: pointer; font-size: 14px; text-decoration: none; transition: background 0.2s; white-space: nowrap;
         }
         
-        /* 커스텀 툴팁 스타일 */
         #chartjs-tooltip {
-            opacity: 0;
-            position: absolute;
-            pointer-events: none;
-            transition: all .1s ease;
-            font-size: 14px;
-            font-weight: bold;
-            color: white;
+            opacity: 0; position: absolute; pointer-events: none; transition: all .1s ease;
+            font-size: 14px; font-weight: bold; color: white;
             text-shadow: -1px -1px 0 #000, 1px -1px 0 #000, -1px 1px 0 #000, 1px 1px 0 #000;
-            z-index: 100;
-            text-align: center;
-            white-space: nowrap; 
+            z-index: 100; text-align: center; white-space: nowrap; 
         }
 
-        /* [추가] 회전 버튼 스타일 */
         .btn-rotate { background: none; border: none; font-size: 1.4rem; cursor: pointer; color: #007bff; padding: 5px; display: flex; align-items: center; justify-content: center; transition: opacity 0.2s; }
         .btn-rotate:hover { opacity: 0.8; }
+        .help-text { font-size: 0.9em; color: #666; margin-top:-10px; margin-bottom: 20px; }
 
-        /* [추가] 강제 가로 모드 (CSS 회전 기법 적용) */
+        /* 강제 가로 모드 (CSS 회전 기법 적용) */
         body.is-rotated .container {
-            position: fixed !important;
-            top: 0 !important;
-            left: 0 !important;
-            width: 100dvh !important;
-            height: 100dvw !important;
-            max-width: none !important;
-            margin: 0 !important;
-            border-radius: 0 !important;
-            transform-origin: 50dvw 50dvw !important;
-            transform: rotate(90deg) !important;
-            z-index: 2000 !important;
-            
-            /* 스크롤 및 노치 패딩 보호 */
+            position: fixed !important; top: 0 !important; left: 0 !important;
+            width: 100dvh !important; height: 100dvw !important; max-width: none !important; margin: 0 !important; border-radius: 0 !important;
+            transform-origin: 50dvw 50dvw !important; transform: rotate(90deg) !important; z-index: 2000 !important;
             overflow-y: auto !important;
             padding-left: calc(20px + env(safe-area-inset-top)) !important;
             padding-right: calc(20px + env(safe-area-inset-bottom)) !important;
-            box-sizing: border-box !important;
-            background: white !important;
+            box-sizing: border-box !important; background: white !important;
+        }
+        @supports not (height: 100dvh) {
+            body.is-rotated .container { width: 100vh !important; height: 100vw !important; transform-origin: 50vw 50vw !important; }
         }
 
-        /* dvh 미지원 브라우저 대비 */
-        @supports not (height: 100dvh) {
-            body.is-rotated .container {
-                width: 100vh !important;
-                height: 100vw !important;
-                transform-origin: 50vw 50vw !important;
-            }
+        /* -----------------------------------------------------
+           [추가] 모바일 세로모드 전용 콤팩트 UI (600px 이하) 
+           ----------------------------------------------------- */
+        @media (max-width: 600px) {
+            body { padding: 10px; }
+            .container { padding: 15px; }
+
+            /* 네비게이션 크기 축소 */
+            .nav-bar { gap: 4px; margin-bottom: 12px; padding-bottom: 10px; }
+            .nav-link { font-size: 12px; padding: 6px 8px; gap: 4px; }
+            
+            /* 헤더(타이틀, 버튼) 1줄 강제 유지 */
+            .nav-header { flex-wrap: nowrap; gap: 5px; margin-bottom: 15px; }
+            .nav-header-left h2 { font-size: 1.15rem; white-space: nowrap; margin: 0; letter-spacing: -0.5px; }
+            .btn-rotate { font-size: 1.1rem; padding: 0; }
+            
+            .nav-header-right .nav-btn { font-size: 0.75rem; padding: 6px 8px; }
+
+            /* 컨트롤 패널을 2줄 레이아웃으로 변경 */
+            .controls { flex-direction: column; align-items: stretch; padding: 12px; gap: 8px; }
+            .divider { display: none; } /* 세로줄 숨김 */
+            
+            /* 가로로 꽉 차게 요소 배치 */
+            .mobile-row { width: 100%; justify-content: space-between; gap: 6px; }
+            .mobile-row .input-group { flex: 1; min-width: 0; }
+            
+            /* 텍스트 줄임 및 입력 폼 크기 조정 */
+            .input-group label { font-size: 0.75rem; letter-spacing: -0.5px; margin-right: 2px; }
+            .symbol-input { width: 100%; font-size: 0.85rem; padding: 6px; }
+            .number-input { width: 100%; min-width: 0; font-size: 0.85rem; padding: 6px; }
+            
+            .add-btn { font-size: 0.85rem; padding: 6px 14px; }
+            .btn-auto { font-size: 0.75rem; padding: 6px 8px; }
+
+            .help-text { font-size: 0.75rem; letter-spacing: -0.5px; margin-bottom: 15px; }
+            .tag { padding: 6px 12px; font-size: 12px; }
         }
     </style>
 </head>
@@ -119,34 +135,40 @@
         </div>
 
         <div class="nav-header">
-            <div style="display: flex; align-items: center; gap: 10px;">
-                <h2 style="margin:0;">⚖️ 리밸런싱 차트</h2>
+            <div class="nav-header-left">
+                <h2>⚖️ 리밸런싱 차트</h2>
                 <button class="btn-rotate" onclick="toggleRotation()" title="가로 화면 전환"><i class="fas fa-sync-alt" id="rotateIcon"></i></button>
             </div>
-            <div>
+            <div class="nav-header-right">
                 <button class="nav-btn" style="background: #6c757d;" onclick="resetLines()">⟲ 보통선</button>
-                <button class="nav-btn" style="background: #dc3545; margin-left: 5px;" onclick="hideAllLines()">∅ 모두 숨김</button>
+                <button class="nav-btn" style="background: #dc3545;" onclick="hideAllLines()">∅ 모두 숨김</button>
             </div>
         </div>
         
         <div class="controls">
-            <div class="input-group">
-                <input type="text" id="symbolInput" class="symbol-input" placeholder="종목 (예: TQQQ)" onkeypress="handleEnter(event)">
+            <div class="mobile-row">
+                <div class="input-group" style="flex: 1;">
+                    <input type="text" id="symbolInput" class="symbol-input" placeholder="종목 (예: TQQQ)" onkeypress="handleEnter(event)">
+                </div>
                 <button class="add-btn" onclick="addSymbol()">추가</button>
             </div>
-            <div style="width: 1px; height: 24px; background: #ddd; margin: 0 5px;"></div>
-            <div class="input-group">
-                <label for="dropRate">📉 등락폭(%):</label>
-                <input type="number" id="dropRate" class="number-input" placeholder="5.0" step="0.1" oninput="updateChartSettings()">
-            </div>
-            <div class="input-group">
-                <label for="basePrice">🚩 기준가($):</label>
-                <input type="number" id="basePrice" class="number-input" placeholder="최고가" step="any" oninput="updateChartSettings()">
-                <button class="nav-btn" style="background: #adb5bd; padding: 6px 10px; font-size: 12px; border-radius: 4px;" onclick="resetBasePrice()">자동(Max)</button>
+            
+            <div class="divider" style="width: 1px; height: 24px; background: #ddd; margin: 0 5px;"></div>
+            
+            <div class="mobile-row">
+                <div class="input-group">
+                    <label for="dropRate">📉 폭(%):</label>
+                    <input type="number" id="dropRate" class="number-input" placeholder="5.0" step="0.1" oninput="updateChartSettings()">
+                </div>
+                <div class="input-group">
+                    <label for="basePrice">🚩 기준가:</label>
+                    <input type="number" id="basePrice" class="number-input" placeholder="최고가" step="any" oninput="updateChartSettings()">
+                </div>
+                <button class="nav-btn btn-auto" style="background: #adb5bd; border-radius: 4px;" onclick="resetBasePrice()">자동</button>
             </div>
         </div>
 
-        <p style="font-size: 0.9em; color: #666; margin-top:-10px; margin-bottom: 20px;">
+        <p class="help-text">
             * 각 종목별로 설정한 <b>기준가</b>와 <b>등락폭</b>이 자동으로 저장됩니다.
         </p>
 
@@ -186,7 +208,7 @@
             }
         };
 
-        // [추가] 회전 토글 함수
+        // 강제 가로 모드 토글 함수
         function toggleRotation() {
             const body = document.body;
             body.classList.toggle('is-rotated');
@@ -198,20 +220,16 @@
                 icon.classList.replace('fa-compress', 'fa-sync-alt');
             }
 
-            // [수정] 애니메이션 완료 후 차트를 다시 그려 늘어난 너비에 가로선을 꽉 채움
+            // 애니메이션 완료 후 차트를 다시 그려 늘어난 너비에 가로선을 꽉 채움
             setTimeout(() => {
-                if (currentData) {
-                    drawChart(); 
-                }
+                if (currentData) drawChart(); 
                 window.dispatchEvent(new Event('resize'));
             }, 350);
         }
 
-        // [추가] 물리적 화면 회전 시 강제 모드 해제 방어 코드
+        // 물리적 화면 회전 시 강제 모드 해제 방어 코드
         window.addEventListener('orientationchange', () => {
-            if (document.body.classList.contains('is-rotated')) {
-                toggleRotation();
-            }
+            if (document.body.classList.contains('is-rotated')) toggleRotation();
         });
 
         function loadSymbols() {
@@ -233,9 +251,7 @@
         }
 
         function resetLines() {
-            if (currentSymbol) {
-                selectSymbol(currentSymbol);
-            }
+            if (currentSymbol) selectSymbol(currentSymbol);
         }
 
         function handleEnter(e) { if (e.key === 'Enter') addSymbol(); }
@@ -407,7 +423,6 @@
             const ctx = document.getElementById('mainChart').getContext('2d');
             const tooltipEl = document.getElementById('chartjs-tooltip');
             
-            // 기존 차트를 확실히 파괴하여 새로운 사이즈에서 재계산 유도
             if (myChart) myChart.destroy();
 
             myChart = new Chart(ctx, {
