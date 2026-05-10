@@ -119,7 +119,7 @@
         async function fetchHistory(symbol){
             try {
                 const yahooUrl = `https://query1.finance.yahoo.com/v8/finance/chart/${symbol}?period1=${dtStart}&period2=${dtEnd}&interval=1d`;
-                const url = `https://newcmnet.duckdns.org/proxy?url=${encodeURIComponent(yahooUrl)}`;
+                const url = 'https://corsproxy.io/?' + encodeURIComponent(yahooUrl);
                 const r = await fetch(url);
                 const j = await r.json();
                 
