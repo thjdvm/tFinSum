@@ -159,7 +159,7 @@
         function hideAllLines() {
             if (!myChart) return;
             symbols.forEach(s => {
-                s.state = 3; // 상태 3: 숨김
+                s.state = 3; 
             });
             saveSymbols();
             myChart.data.datasets.forEach((ds, index) => {
@@ -219,6 +219,8 @@
             const dtEnd = Math.floor(Date.now() / 1000);
             const dtStart = dtEnd - (90 * 24 * 60 * 60); 
             const yahooUrl = `https://query1.finance.yahoo.com/v8/finance/chart/${symbol}?period1=${dtStart}&period2=${dtEnd}&interval=1d`;
+            
+            // 공용 CORS 프록시 적용
             const url = 'https://corsproxy.io/?' + encodeURIComponent(yahooUrl);
 
             try {

@@ -185,7 +185,7 @@
     const STORAGE_KEY_SYMBOLS = 'stockSymbols_v3';
     const STORAGE_KEY_CUR_PAGE = 'stockCurrentPage';
 
-    // 프록시 서버 IP 설정 (퍼블릭 프록시로 교체)
+    // 프록시 서버 설정 (공용 CORS 프록시로 교체됨)
     const PROXY_SERVER = "https://corsproxy.io/?";
 
     const defaultSymbols = ['GOOGL', 'SPYM', 'AAPL', 'NVDA', 'AMD', 'UEC', 'AMZN', 'TSLA', 'MSFT'];
@@ -660,7 +660,7 @@
 
       document.getElementById('desc').innerHTML = `${allDates[0]} ~ ${allDates[allDates.length-1]} 데이터`;
       
-      // 모든 조합에 대한 비율 계산 루틴 (1vs2, 1vs3, 1vs4, 2vs3, 2vs4, 3vs4)
+      // 모든 조합에 대한 비율 계산 루틴
       let ratioHtml = "<strong>실시간 시총 순위 및 상세 비율</strong><br>";
       latestInfo.forEach((item, idx) => {
           ratioHtml += `${idx + 1}등: ${item.name} (${item.cap}T)${(idx % 2 === 0) ? ' / ' : '<br>'}`;
